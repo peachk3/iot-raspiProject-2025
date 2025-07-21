@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Home Controller</title>
+    <script>
+        function measure() {
+            // // 버튼 비활성화 및 로딩 표시
+            // const measureBtn = event.target;
+            // measureBtn.disabled = true;
+            // measureBtn.textContent = '측정 중...';
+            // document.getElementById("result").innerHTML = "🔄 측정 중...";
+            
+            fetch("/measure", {
+                    method: "POST"
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById("measure-result").innerHTML = `
+                        🌡 온도: ${data.temperature}℃ <br>
+                        💧 습도: ${data.humidity}% <br>
+                        📅 측정 시간: 지금
+                        `;
+                    } else {
+                        document.getElementById("measure-result").innerHTML = `
+                        ❌ 측정 실패: ${data.error}
+                        `;
+                    }
+                })
+                .catch(err => {
+                    document.getElementById("measure-result").innerHTML =
+                        "❌ 요청 중 오류 발생: " + err;
+                })
+                .finally(() => {
+                    // 버튼 다시 활성화
+                    measureBtn.disabled = false;
+                    measureBtn.textContent = '📥 측정';
+                });
+        }
+
+        // LED 제어를 AJAX로 변경 (페이지 새로고침 방지)
+        function toggleLED() {
+            const ledBtn = event.target;
+            ledBtn.disabled = true;
+            
+            fetch("/ledControl", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        ledBtn.textContent = data.button_text || 'LED 제어';
+                        document.getElementById("led-status").textContent = data.led_state ? 'ON' : 'OFF';
+                    } else {
+                        alert('LED 제어 실패');
+                    }
+                })
+                .catch(err => {
+                    console.error('LED 제어 오류:', err);
+                    // 오류 시 페이지 새로고침으로 폴백
+                    window.location.reload();
+                })
+                .finally(() => {
+                    ledBtn.disabled = false;
+                });
+        }
+    </script>
+</head>
+<body>
+    <h2>환영합니다, {{ user_nick }}님!</h2>
+
+    <h3>📊 최근 온습도 정보</h3>
+    <!-- 📋 가장 최근 정보 -->
+    <div id="measure-result">
+    🌡 온도: {{ temp }}℃ <br>
+    💧 습도: {{ humid }}% <br>
+    📅 측정일: {{ date }}
+    </div>
+<!-- 🌡 측정 버튼 -->
+    <button onclick="measureTemp()">🌡 실시간 측정</button>
+    <p id="result">※ 버튼을 눌러 실시간으로 측정해보세요!</p>
+    
+    <br><br>
+    
+    <h3>💡 LED 제어</h3>
+    <p>현재 상태: <span id="led-status">{{ 'ON' if led_state else 'OFF' }}</span></p>
+    
+    <!-- AJAX 방식으로 변경 -->
+    <button onclick="toggleLED()">{{ 'OFF' if led_state else 'ON' }}</button>
+    
+    <!-- 기존 form 방식도 남겨둠 (백업용) -->
+    <!-- 
+    <form action="/ledControl" method="post">
+        <button type="submit">{{ 'OFF' if led_state else 'ON' }}</button>
+    </form>
+    -->
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        h2, h3 {
+            color: #333;
+        }
+        
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        button:hover {
+            background-color: #0056b3;
+        }
+        
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        
+        #result {
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        
+        span {
+            font-weight: bold;
+            color: #007bff;
+        }
+    </style>
+</body>
+</html>
