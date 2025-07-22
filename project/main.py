@@ -8,7 +8,7 @@ import atexit
 from mysql.connector import Error
 
 app = Flask(__name__)
-app.secret_key = 'your-secret-key-here'  # 세션을 위한 시크릿 키 추가
+app.secret_key = 'test_1234'  # 세션을 위한 시크릿 키 추가
 
 # DB 연결을 함수로 만들어 연결 끊김 문제 해결
 def get_db_connection():
@@ -23,29 +23,60 @@ def get_db_connection():
     except Error as e:
         print(f"DB 연결 오류: {e}")
         return None
-
-ledPin = 23
+    
+BUZZER = 18
+LED_GREEN = 23
+LED_RED = 2
+LED_BLUE = 4
 led_state = False
 
 # GPIO 초기화 함수
 def init_gpio():
     try:
         GPIO.setmode(GPIO.BCM)
+        GPIO.setup(BUZZER, GPIO.OUT)
         GPIO.setwarnings(False)  # 경고 메시지 비활성화
         
         # 핀이 이미 사용 중인 경우를 대비해 정리
         try:
-            GPIO.cleanup(ledPin)
+            GPIO.cleanup(LED_GREEN)
+            GPIO.cleanup(LED_RED)
+            GPIO.cleanup(LED_BLUE)
         except:
             pass
             
-        GPIO.setup(ledPin, GPIO.OUT)
-        GPIO.output(ledPin, GPIO.LOW)  # LED 초기 상태: OFF
-        print(f"GPIO {ledPin} 초기화 완료")
+        GPIO.setup(LED_GREEN, GPIO.OUT)
+        GPIO.setup(LED_RED, GPIO.OUT)
+        GPIO.setup(LED_BLUE, GPIO.OUT)
+
+        GPIO.output(LED_GREEN, GPIO.LOW)  # LED 초기 상태: OFF
+        GPIO.output(LED_RED, GPIO.LOW)  # LED 초기 상태: OFF
+        GPIO.output(LED_BLUE, GPIO.LOW)  # LED 초기 상태: OFF
+
+        print(f"GPIO {LED_GREEN} 초기화 완료")
+        print(f"GPIO {LED_RED} 초기화 완료")
+        print(f"GPIO {LED_BLUE} 초기화 완료")
         return True
     except Exception as e:
         print(f"GPIO 초기화 오류: {e}")
         return False
+    
+def trigger_alarm():
+    for _ in range(5):
+        GPIO.output(BUZZER, True)
+        GPIO.output(LED_RED, True)
+        time.sleep(0.3)
+        GPIO.output(BUZZER, False)
+        GPIO.output(LED_RED, False)
+        time.sleep(0.3)
+
+def normal_alarm():
+    for _ in range(3):
+        GPIO.output(LED_GREEN, GPIO.HIGH)
+        time.sleep(0.3)
+        GPIO.output(LED_GREEN, GPIO.LOW)  # LED 초기 상태: OFF
+        time.sleep(0.3)
+
 
 # GPIO 초기화 실행
 gpio_initialized = init_gpio()
@@ -74,6 +105,7 @@ def main():
     if user:
         user_nick = user[0]
         # 메인 페이지로 리다이렉트하여 중복 코드 제거
+        # session['logged_in'] = True 
         session['user_nick'] = user_nick  # 세션에 사용자 정보 저장
         return redirect(url_for('main_page'))
     else:
@@ -87,7 +119,7 @@ def main_page():
 
     user_nick = session['user_nick']
 
-    # 📋 최근 온습도 정보 불러오기
+    #📋 최근 온습도 정보 불러오기
     temp_data = get_latest_temp_humid_data()
 
     button_text = "OFF" if led_state else "ON"
@@ -100,7 +132,6 @@ def main_page():
         button_text=button_text, 
         led_state=led_state,
         login_form=False)
-
 
 @app.route("/ledControl", methods=['POST'])
 def led_control():
@@ -121,7 +152,17 @@ def led_control():
     try:
         # LED 상태 토글
         led_state = not led_state
-        GPIO.output(ledPin, GPIO.HIGH if led_state else GPIO.LOW)
+        if led_state:
+            # 흰색 켜기
+            GPIO.output(LED_RED, GPIO.HIGH)
+            GPIO.output(LED_GREEN, GPIO.HIGH)
+            GPIO.output(LED_BLUE, GPIO.HIGH)
+        else:
+            # 모두 끄기
+            GPIO.output(LED_RED, GPIO.LOW)
+            GPIO.output(LED_GREEN, GPIO.LOW)
+            GPIO.output(LED_BLUE, GPIO.LOW)
+
         print(f"LED 상태: {'ON' if led_state else 'OFF'}")
         
         # AJAX 요청인지 확인
@@ -151,7 +192,6 @@ def authenticate_user(user_id, password):
     conn = get_db_connection()  # 수정: 연결 함수 사용
     if not conn:
         return None
-    
     try:
         cursor = conn.cursor()
         sql = "SELECT user_nick FROM user WHERE user_id=%s AND password=%s"
@@ -170,7 +210,6 @@ def get_latest_temp_humid_data():
     conn = get_db_connection()  # 수정: 연결 함수 사용
     if not conn:
         return {'temp': "DB 연결 오류", 'humid': "DB 연결 오류", 'date': "DB 연결 오류"}
-    
     try:
         cursor = conn.cursor()
         sql = "SELECT temp, humid, date FROM tempHumData ORDER BY date DESC LIMIT 1"
@@ -193,8 +232,7 @@ def get_latest_temp_humid_data():
 @app.route('/logout')
 def logout():
     session.clear()
-    return redirect(url_for('mainlogin'))
-
+    return redirect(url_for('main_page'))
 try:
     dht_device = adafruit_dht.DHT11(board.D21)
     print("DHT 센서 초기화 성공")
@@ -217,6 +255,13 @@ def measure():
             print(f"Temp: {temperature}°C")
             print(f"Humi: {humidity}%")
             print("-"*20)
+            
+            if(temperature >= 18 and temperature <= 25):
+                # 정적온도일때
+                normal_alarm()
+            if(temperature >= 35 and humidity > 80):
+                # 온도가 35도 이상 올라갈 경우 부저 5번 울림 + led 빨간색 켜졌다가 꺼짐 5번 반복
+                trigger_alarm()
 
             # DB에 데이터 삽입
             conn = get_db_connection()
