@@ -9,8 +9,7 @@
             // const measureBtn = event.target;
             // measureBtn.disabled = true;
             // measureBtn.textContent = '측정 중...';
-            // document.getElementById("result").innerHTML = "🔄 측정 중...";
-            
+            // document.getElementById("result").innerHTML = "🔄 측정 중...";           
             fetch("/measure", {
                     method: "POST"
                 })
@@ -79,14 +78,16 @@
 
         function updateTime() {
             const now = new Date();
-            const hours = String(now.getHours()).padStart(2, '0');
-            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const timeString = now.toLocaleTimeString('ko-KR', {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+            });
             const day = String(now.getDate());
             const month = now.toLocaleDateString('en-US', {month: 'long'});
-            // const seconds = String(now.getSeconds()).padStart(2, '0');
-            const formattedTime = `${hours} ${minutes}`;
             const formattedDate = `${day} ${month}`;
-            document.getElementById("current-time").textContent = `${formattedDate}`;
+            document.getElementById("time-text").textContent = timeString;
+            document.getElementById("current-date").textContent = `${formattedDate}`;
         }
 
         // 1초마다 업데이트
@@ -96,42 +97,64 @@
 </head>
 <body>
     <div class="container">
-        <h1>환경 감시 시스템</h1>
-        <h2>Hello {{ user_nick }}!</h2>
-
+        <div class="title-container">
+            <h1>환경 감시 시스템</h1>
+            <!-- <div class="date-time"> -->
+            <div class="current-time">⏰<span id="time-text"></span></div>
+            <!-- </div>? -->
+        </div>
         <!-- Flex로 정렬할 부모 -->
         <div class="info-wrapper">
-            <!-- 온습도 정보 -->
             <div class="info-card">
-                <h3>📊 최근 온습도 정보</h3>
-                <!-- 📋 가장 최근 정보 -->
-                <div id="measure-result">
-                    <div id="result">🌡️ 온도: {{ temp }}℃ </div>
-                    <div id="result">💧 습도: {{ humid }}%</div>
-                    <div id="result">📅 측정일: {{ date }}</div>
-                    <button onclick="measure()"> 실시간 측정</button>
-                    <p id="mes_btn">※ 버튼을 눌러 실시간으로 측정해보세요!</p>
+                <div class="info-left">
+                    <div class="user">
+                        <h2>Welcome<br> {{ user_nick }} !</h2>
+                        <br>
+                    </div>
+                    <span id="current-date"></span>
+                <!-- 온습도 정보 -->
+                    <!-- <h3>📊 최근 온습도 정보</h3> -->
+                    <!-- 📋 가장 최근 정보 -->
+                    <div id="measure-result">
+                        <div class="result-wrapper">
+                            <div class="result-box" id="result">🌡️ {{ temp|round|int }} ℃ </div>
+                            <div class="result-box" id="result">💧 {{ humid|round|int }} %</div>
+                            <div class="result-box" id="result"> {{ weather_info }}</div>
+                        </div>
+                        <!-- <button onclick="measure()"> 실시간 측정</button> -->
+                        <!-- <p id="mes_btn">※ 버튼을 눌러 실시간으로 측정해보세요!</p> -->
+                    </div>
+                </div>
+                <div class="info-right">
+                    <div style="width: 100px; height: 100px; background: white; border-radius: 50%; 
+                        display: flex; justify-content: center; align-items: center; font-size: 48px;">
+                        👨‍💻
+                    </div>
+                    <form action="/logout" method="get">
+                        <button id="logout" type="submit">LOGOUT</button>
+                    </form>
                 </div>
             </div>
-            
-            <!-- 💡 LED 카드 -->
-            <div class="info-card led-card">
-                 <!-- 🌡 측정 버튼 -->
-                <div class="led-top">
-                    <div id="current-time"></div>
-                </div>
-                    <!-- 🔘 LED 제어 -->
+        </div>
+        <!-- 💡 LED 카드 -->
+        <div class="bottom-wrapper">
+            <div class="led-container card-box">
                 <div class="led-bottom">
-                    <h3>💡 LED 제어</h3>
+                    <h3>LED</h3>
                     <div class="led-status">
-                        현재 상태: <span id="led-status">{{ 'ON' if led_state else 'OFF' }}</span>
+                        💡 현재 상태: <span id="led-status">{{ 'ON' if led_state else 'OFF' }} </span>
+                        <button class="led-button" onclick="toggleLED()">{{ 'OFF' if led_state else 'ON' }}</button>
                     </div>
                     <!-- AJAX 방식으로 변경 -->
-                    <button onclick="toggleLED()">{{ 'OFF' if led_state else 'ON' }}</button>
                 </div>
-                <form action="/logout" method="get">
-                    <button id="logout" type="submit">LOGOUT</button>
-                </form>
+            </div>
+            <div class="temp-container card-box">
+                <h3>Temperature</h3>
+                <h1>🌡️ {{ temp|round|int }} ℃</h1>
+            </div>
+            <div class="humid-container card-box">
+                <h3>Humidity</h3>
+                <h1>💧 {{ humid|round|int }} %</h1>
             </div>
         </div>
     </div>

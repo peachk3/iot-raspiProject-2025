@@ -49,6 +49,11 @@ CREATE TABLE tempHumData (
 - GPIO는 프로그램 종료 시 반드시 GPIO.cleanup()으로 정리
 
 ### 📷 실행 화면 예시
+#### 🔐 로그인 화면
+<img src="./project/image/001.png">
+
+#### 메인 화면
+<img src="./project/image/002.png">
 
 
 ### ✅ 주요 기능
@@ -84,3 +89,9 @@ CREATE TABLE tempHumData (
 #### 5. 🔐 페이지 접근 제어 (보안)
 - `/main`, `/ledControl`, `/measure` 등 모든 주요 페이지는 로그인 세션 확인
 - 로그인하지 않은 사용자는 자동으로 로그인 페이지로 리다이렉트됨
+
+
+### 추후 확장 가능성
+- 온도/습도에 해당하는 부분 클릭시 해당 데이터 시각화(그래프)
+- 날씨 API 연동
+- 사용자 추가해 여러 명이서 사용할 수 있도록 컨트롤

@@ -118,10 +118,37 @@ def main_page():
         return redirect(url_for('mainlogin'))
 
     user_nick = session['user_nick']
+        # 예시 - 실제 API를 통해 받아오는 것이 일반적
+    weather_info = "☀️ 30℃ "  # 또는 API 결과값 가공해서 넣기
+    # ✅ 온습도 자동 측정
+    if dht:
+        try:
+            temperature = dht.temperature
+            humidity = dht.humidity
+            
+            if temperature is not None and humidity is not None:
+                print(f"[자동측정] Temp: {temperature}°C, Humi: {humidity}%")
 
-    #📋 최근 온습도 정보 불러오기
+                # 알람 조건 처리
+                if 18 <= temperature <= 25:
+                    normal_alarm()
+                if temperature >= 35 and humidity > 80:
+                    trigger_alarm()
+
+                # DB 저장
+                conn = get_db_connection()
+                if conn:
+                    cursor = conn.cursor()
+                    sql = "INSERT INTO tempHumData (temp, humid) VALUES (%s, %s)"
+                    cursor.execute(sql, (temperature, humidity))
+                    conn.commit()
+                    cursor.close()
+                    conn.close()
+        except Exception as e:
+            print(f"[자동측정 오류] {e}")
+
+    # 📋 최신값 불러오기
     temp_data = get_latest_temp_humid_data()
-
     button_text = "OFF" if led_state else "ON"
 
     return render_template("main.html", 
@@ -131,6 +158,7 @@ def main_page():
         user_nick=user_nick, 
         button_text=button_text, 
         led_state=led_state,
+        weather_info=weather_info,
         login_form=False)
 
 @app.route("/ledControl", methods=['POST'])
@@ -240,58 +268,58 @@ except Exception as e:
     print(f"DHT 센서 초기화 실패: {e}")
     dht_device = None
 
-@app.route("/measure", methods=['POST'])
-def measure():
-    """한 번의 측정만 수행하고 결과 반환"""
-    if not dht:
-        return jsonify({'success': False, 'error': 'DHT 센서가 초기화되지 않았습니다'})
+# @app.route("/measure", methods=['POST'])
+# def measure():
+#     """한 번의 측정만 수행하고 결과 반환"""
+#     if not dht:
+#         return jsonify({'success': False, 'error': 'DHT 센서가 초기화되지 않았습니다'})
     
-    try:
-        # 센서에서 온도와 습도 값을 읽어옴
-        temperature = dht.temperature
-        humidity = dht.humidity
+#     try:
+#         # 센서에서 온도와 습도 값을 읽어옴
+#         temperature = dht.temperature
+#         humidity = dht.humidity
 
-        if temperature is not None and humidity is not None:
-            print(f"Temp: {temperature}°C")
-            print(f"Humi: {humidity}%")
-            print("-"*20)
+#         if temperature is not None and humidity is not None:
+#             print(f"Temp: {temperature}°C")
+#             print(f"Humi: {humidity}%")
+#             print("-"*20)
             
-            if(temperature >= 18 and temperature <= 25):
-                # 정적온도일때
-                normal_alarm()
-            if(temperature >= 35 and humidity > 80):
-                # 온도가 35도 이상 올라갈 경우 부저 5번 울림 + led 빨간색 켜졌다가 꺼짐 5번 반복
-                trigger_alarm()
+#             if(temperature >= 18 and temperature <= 25):
+#                 # 정적온도일때
+#                 normal_alarm()
+#             if(temperature >= 35 and humidity > 80):
+#                 # 온도가 35도 이상 올라갈 경우 부저 5번 울림 + led 빨간색 켜졌다가 꺼짐 5번 반복
+#                 trigger_alarm()
 
-            # DB에 데이터 삽입
-            conn = get_db_connection()
-            if conn:
-                try:
-                    cursor = conn.cursor()
-                    sql3 = "INSERT INTO tempHumData (temp, humid) VALUES (%s, %s)"
-                    val = (temperature, humidity)
-                    cursor.execute(sql3, val)
-                    conn.commit()
+#             # DB에 데이터 삽입
+#             conn = get_db_connection()
+#             if conn:
+#                 try:
+#                     cursor = conn.cursor()
+#                     sql3 = "INSERT INTO tempHumData (temp, humid) VALUES (%s, %s)"
+#                     val = (temperature, humidity)
+#                     cursor.execute(sql3, val)
+#                     conn.commit()
                     
-                    return jsonify({
-                        'success': True,
-                        'temperature': temperature,
-                        'humidity': humidity,
-                    })
-                except Error as e:
-                    print(f"DB 저장 오류: {e}")
-                    return jsonify({'success': False, 'error': 'DB 저장 실패'})
-                finally:
-                    conn.close()
-            else:
-                return jsonify({'success': False, 'error': 'DB 연결 실패'})
-        else:
-            print("데이터 읽기 실패")
-            return jsonify({'success': False, 'error': '센서 데이터 읽기 실패'})
+#                     return jsonify({
+#                         'success': True,
+#                         'temperature': temperature,
+#                         'humidity': humidity,
+#                     })
+#                 except Error as e:
+#                     print(f"DB 저장 오류: {e}")
+#                     return jsonify({'success': False, 'error': 'DB 저장 실패'})
+#                 finally:
+#                     conn.close()
+#             else:
+#                 return jsonify({'success': False, 'error': 'DB 연결 실패'})
+#         else:
+#             print("데이터 읽기 실패")
+#             return jsonify({'success': False, 'error': '센서 데이터 읽기 실패'})
         
-    except RuntimeError as error:
-        print(f"센서 읽기 오류: {error.args[0]}")
-        return jsonify({'success': False, 'error': f'센서 오류: {error.args[0]}'})
+#     except RuntimeError as error:
+#         print(f"센서 읽기 오류: {error.args[0]}")
+#         return jsonify({'success': False, 'error': f'센서 오류: {error.args[0]}'})
 
 # # 주기적 측정을 위한 별도 엔드포인트 (백그라운드 작업용)
 # @app.route("/start_monitoring")
